@@ -60,7 +60,8 @@ runs:
       run: |
         cat snyk.json | snyk-delta && true
         if [ $? -ne 0 ]; then
-            echo "::setFailed::New issues were found! Refer to the Snyk report found in the Artifacts section of the Job Summary."
+            echo "::error ::New issues were found! Refer to the Snyk report found in the Artifacts section of the Job Summary."
+            return 1
         fi
       env:
         SNYK_TOKEN: ${{ inputs.snyk-token }}
