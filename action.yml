@@ -22,7 +22,6 @@ inputs:
 
 runs:
   using: composite
-
   steps:
     - name: Run Snyk to check for vulnerabilities
       uses: snyk/actions/gradle-jdk11@master
@@ -41,6 +40,7 @@ runs:
         node-version: '14'
 
     - name: Install and run snyk-to-html
+      shell: bash
       run: |
         npm install snyk-to-html -g
         snyk-to-html -i snyk.json -o ${{ inputs.artifact-name }}.html
@@ -52,9 +52,11 @@ runs:
         path: ${{ inputs.artifact-name }}.html
 
     - name: Install snyk-delta and dependencies
+      shell: bash
       run: npm i -g snyk-delta
 
     - name: Check delta
+      shell: bash
       run: cat snyk.json | snyk-delta # how does it choose the correct baseline project?
       env:
         SNYK_TOKEN: ${{ inputs.snyk-token }}
