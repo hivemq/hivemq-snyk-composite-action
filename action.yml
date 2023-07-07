@@ -1,0 +1,62 @@
+name: 'Check for new Snyk issues'
+description: 'This is an action that checks if there are new license or vulnerability issues compared to a baseline project.'
+
+inputs:
+  snyk-args:
+    default: ""
+    required: false
+    description: "Arguments passed to the Snyk test command"
+  artifact-name:
+    default: "snyk-report"
+    required: false
+    description: "The name of the Snyk report generated"
+  snyk-token:
+    required: true
+    description: "The token used to authenticate with Snyk"
+  github-username:
+    required: true
+    description: "GitHub username"
+  github-token:
+    required: true
+    description: "GitHub token"
+
+runs:
+  using: composite
+
+  steps:
+    - name: Run Snyk to check for vulnerabilities
+      uses: snyk/actions/gradle-jdk11@master
+      continue-on-error: true
+      env:
+        SNYK_TOKEN: ${{ inputs.snyk-token }}
+        ORG_GRADLE_PROJECT_hivemqCommonsUsername: ${{ inputs.github-username }}
+        ORG_GRADLE_PROJECT_hivemqCommonsPassword: ${{ inputs.github-token }}
+      with:
+        args: ${{ inputs.snyk-args }} --print-deps --json
+        json: true
+
+    - name: Set up node
+      uses: actions/setup-node@v3
+      with:
+        node-version: '14'
+
+    - name: Install and run snyk-to-html
+      run: |
+        npm install snyk-to-html -g
+        snyk-to-html -i snyk.json -o ${{ inputs.artifact-name }}.html
+
+    - name: Use the Upload Artifact GitHub Action
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ inputs.artifact-name }}.html
+
+    - name: Install snyk-delta and dependencies
+      run: npm i -g snyk-delta
+
+    - name: Check delta
+      run: cat snyk.json | snyk-delta # how does it choose the correct baseline project?
+      env:
+        SNYK_TOKEN: ${{ inputs.snyk-token }}
+        ORG_GRADLE_PROJECT_hivemqCommonsUsername: ${{ inputs.github-username }}
+        ORG_GRADLE_PROJECT_hivemqCommonsPassword: ${{ inputs.github-token }}
