@@ -59,10 +59,8 @@ runs:
       shell: bash
       run: |
         cat snyk.json | snyk-delta
-        if [ $? -eq 0 ]; then
-            echo "### No new issues found! :rocket:" >> $GITHUB_STEP_SUMMARY
-        else
-            echo "### New issues were found! Refer to the snyk report in the Artifacts. :bug:" >> $GITHUB_STEP_SUMMARY
+        if [ $? -ne 0 ]; then
+            echo "::error ::New issues were found! Refer to the Snyk report found in the Artifacts section of the Job Summary."
             echo "::setFailed"
         fi
       env:
