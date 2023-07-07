@@ -58,7 +58,7 @@ runs:
     - name: Check delta
       shell: bash
       run: |
-        cat snyk.json | snyk-delta
+        cat snyk.json | snyk-delta && true
         if [ $? -ne 0 ]; then
             echo "::error ::New issues were found! Refer to the Snyk report found in the Artifacts section of the Job Summary."
             echo "::setFailed"
