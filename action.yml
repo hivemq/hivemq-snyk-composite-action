@@ -57,7 +57,14 @@ runs:
 
     - name: Check delta
       shell: bash
-      run: cat snyk.json | snyk-delta # how does it choose the correct baseline project?
+      run: |
+        cat snyk.json | snyk-delta
+        if [ $? -eq 0 ]; then
+            echo "### No new issues found! :rocket:" >> $GITHUB_STEP_SUMMARY
+        else
+            echo "### New issues were found! Refer to the snyk report in the Artifacts. :bug:" >> $GITHUB_STEP_SUMMARY
+            echo "::setFailed"
+        fi
       env:
         SNYK_TOKEN: ${{ inputs.snyk-token }}
         ORG_GRADLE_PROJECT_hivemqCommonsUsername: ${{ inputs.github-username }}
