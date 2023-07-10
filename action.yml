@@ -63,7 +63,7 @@ runs:
         exit_code=$?
         if [ $exit_code -ne 0 ]; then
             if [ $exit_code -eq 1 ]; then
-              echo "::error ::New issues were found! Refer to the Snyk report found in the Artifacts section of the Job Summary."
+              echo "::error ::New issues were found! For more info, refer to the Snyk report found in the Artifacts section of the job summary."
             fi
             exit $exit_code
         fi
