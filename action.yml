@@ -19,6 +19,14 @@ inputs:
   github-token:
     required: true
     description: "GitHub token"
+  enterprise-access-key:
+    default: ""
+    required: false
+    description: "HiveMQ Enterprise Access Key"
+  enterprise-secret-key:
+    default: ""
+    required: false
+    description: "HiveMQ Enterprise Secret Key"
 
 runs:
   using: composite
@@ -30,6 +38,8 @@ runs:
         SNYK_TOKEN: ${{ inputs.snyk-token }}
         ORG_GRADLE_PROJECT_hivemqCommonsUsername: ${{ inputs.github-username }}
         ORG_GRADLE_PROJECT_hivemqCommonsPassword: ${{ inputs.github-token }}
+        ORG_GRADLE_PROJECT_hivemqEnterpriseAccessKey: ${{ inputs.enterprise-access-key }}
+        ORG_GRADLE_PROJECT_hivemqEnterpriseSecretKey: ${{ inputs.enterprise-secret-key }}
       with:
         args: ${{ inputs.snyk-args }} --print-deps --json
         json: true
@@ -71,3 +81,5 @@ runs:
         SNYK_TOKEN: ${{ inputs.snyk-token }}
         ORG_GRADLE_PROJECT_hivemqCommonsUsername: ${{ inputs.github-username }}
         ORG_GRADLE_PROJECT_hivemqCommonsPassword: ${{ inputs.github-token }}
+        ORG_GRADLE_PROJECT_hivemqEnterpriseAccessKey: ${{ inputs.enterprise-access-key }}
+        ORG_GRADLE_PROJECT_hivemqEnterpriseSecretKey: ${{ inputs.enterprise-secret-key }}
