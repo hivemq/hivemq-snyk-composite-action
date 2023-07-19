@@ -73,7 +73,11 @@ runs:
       shell: bash
       run: |
         set +e
-        cat snyk.json | snyk-delta ${{ inputs.snyk-baseline-project-id }}
+        snyk_delta_args=()
+        if [ -n ${{ inputs.snyk-baseline-project-id }} ]; then
+          snyk_delta_args+=(--baselineProject ${{ inputs.snyk-baseline-project-id }})
+        fi
+        cat snyk.json | snyk-delta "${snyk_delta_args[@]}"
         exit_code=$?
         if [ $exit_code -ne 0 ]; then
             if [ $exit_code -eq 1 ]; then
