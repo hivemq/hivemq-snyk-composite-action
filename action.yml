@@ -27,6 +27,10 @@ inputs:
     default: ""
     required: false
     description: "HiveMQ Enterprise Secret Key"
+  snyk-baseline-project-id:
+    default: ""
+    required: false
+    description: "ID of project that is used as a baseline"
 
 runs:
   using: composite
@@ -69,7 +73,7 @@ runs:
       shell: bash
       run: |
         set +e
-        cat snyk.json | snyk-delta
+        cat snyk.json | snyk-delta ${{ inputs.snyk-baseline-project-id }}
         exit_code=$?
         if [ $exit_code -ne 0 ]; then
             if [ $exit_code -eq 1 ]; then
