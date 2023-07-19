@@ -14,10 +14,12 @@ inputs:
     required: true
     description: "The token used to authenticate with Snyk"
   github-username:
-    required: true
+    default: ""
+    required: false
     description: "GitHub username"
   github-token:
-    required: true
+    default: ""
+    required: false
     description: "GitHub token"
   enterprise-access-key:
     default: ""
