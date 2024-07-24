@@ -110,7 +110,6 @@ runs:
         snyk_baseline_project_id=${retrieved_baseline_project_id:-'${{ inputs.snyk-baseline-project-id }}'}
         if [ -n $snyk_baseline_project_id ]; then
           snyk_delta_args+=(--baselineProject $snyk_baseline_project_id)
-          echo "baseline is $snyk_baseline_project_id"
         fi
         cat snyk.json | snyk-delta "${snyk_delta_args[@]}"
         exit_code=$?
