@@ -80,7 +80,8 @@ runs:
       shell: bash
       run: |
         echo "snyk_org=$(jq -r .org < snyk.json)" >> "$GITHUB_ENV"
-        echo "snyk_project_name=$(jq -r .projectName < snyk.json):$(jq -r .targetFile < snyk.json)" >> "$GITHUB_ENV"
+        echo "snyk_project_name=$(jq -r .projectName < snyk.json)" >> "$GITHUB_ENV"
+        echo "snyk_target_file=$(jq -r .targetFile < snyk.json)" >> "$GITHUB_ENV"
 
     - name: Get Snyk Org ID
       id: get_snyk_org_id
@@ -95,7 +96,7 @@ runs:
       id: get_baseline_project_id
       uses: fjogeleit/http-request-action@v1
       with:
-        url: 'https://api.snyk.io/rest/orgs/${{ fromJson(steps.get_snyk_org_id.outputs.response).data[0].id }}/projects?version=${{ inputs.snyk-api-version }}&target_reference=${{ github.base_ref }}&names=${{ env.snyk_project_name }}'
+        url: 'https://api.snyk.io/rest/orgs/${{ fromJson(steps.get_snyk_org_id.outputs.response).data[0].id }}/projects?version=${{ inputs.snyk-api-version }}&target_reference=${{ github.base_ref }}&names=${{ env.snyk_project_name }}%3A${{ env.snyk_target_file }}'
         method: 'GET'
         customHeaders: '{"Content-Type": "application/vnd.api+json", "Authorization": "token ${{ inputs.snyk-token }}"}'
         retry: 3
