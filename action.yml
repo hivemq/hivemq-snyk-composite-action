@@ -81,9 +81,9 @@ runs:
       id: get_snyk_org_id
       uses: fjogeleit/http-request-action@v1
       with:
-        url: 'https://api.snyk.io/rest/orgs?version=2024-05-08&slug=$snyk_org'
+        url: 'https://api.snyk.io/rest/orgs?version=2024-05-08&slug=${{env.snyk_org}}'
         method: 'GET'
-        bearerToken: '${{ inputs.snyk-token }}'
+        customHeaders: '{"Content-Type": "application/vnd.api+json", "Authorization": "token ${{ inputs.snyk-token }}"}'
 
     - name: print response
       shell: bash
