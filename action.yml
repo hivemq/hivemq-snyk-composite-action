@@ -77,10 +77,18 @@ runs:
       run: |
         echo "snyk_org=$(jq -r .org < snyk.json)" >> "$GITHUB_ENV"
 
-    - name: Print args
+    - name: Get Snyk Org ID
+      id: get_snyk_org_id
+      uses: fjogeleit/http-request-action@v1
+      with:
+        url: 'https://api.snyk.io/rest/orgs?version=2024-05-08&slug=$snyk_org'
+        method: 'GET'
+        bearerToken: '${{ inputs.snyk-token }}'
+
+    - name: print response
       shell: bash
       run: |
-        echo $snyk_org
+        echo ${{ fromJson(steps.get_snyk_org_id.outputs.response).data[0].id }}
 
     - name: Check delta
       shell: bash
