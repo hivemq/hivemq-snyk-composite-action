@@ -72,6 +72,16 @@ runs:
       shell: bash
       run: npm i -g snyk-delta
 
+    - name: Parse Snyk args
+      shell: bash
+      run: |
+        echo "snyk_org=$(jq -r .org < snyk.json)" >> "$GITHUB_ENV"
+
+    - name: Print args
+      shell: bash
+      run: |
+        echo $snyk_org
+
     - name: Check delta
       shell: bash
       run: |
