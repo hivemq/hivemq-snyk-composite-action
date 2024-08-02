@@ -89,7 +89,7 @@ runs:
       with:
         url: 'https://api.snyk.io/rest/orgs?version=${{ inputs.snyk-api-version }}&slug=${{ env.snyk_org }}'
         method: 'GET'
-        customHeaders: '{"Content-Type": "application/vnd.api+json", "Authorization": "token ${{ inputs.snyk-token }}"}'
+        customHeaders: '{"Authorization": "token ${{ inputs.snyk-token }}"}'
         retry: 3
 
     - name: Get baseline project ID
@@ -98,7 +98,7 @@ runs:
       with:
         url: 'https://api.snyk.io/rest/orgs/${{ fromJson(steps.get_snyk_org_id.outputs.response).data[0].id }}/projects?version=${{ inputs.snyk-api-version }}&target_reference=${{ github.base_ref }}&names=${{ env.snyk_project_name }}%3A${{ env.snyk_target_file }}'
         method: 'GET'
-        customHeaders: '{"Content-Type": "application/vnd.api+json", "Authorization": "token ${{ inputs.snyk-token }}"}'
+        customHeaders: '{"Authorization": "token ${{ inputs.snyk-token }}"}'
         retry: 3
 
     - name: Check delta
