@@ -77,7 +77,7 @@ runs:
       run: |
         project_name_query="${{ env.snyk_project_name }}"
         retrieved_target_file=${{ env.snyk_target_file }}
-        if [ -n ${retrieved_target_file} ]; then
+        if [ "${retrieved_target_file}" != "null" ]; then
           project_name_query="${project_name_query}%3A${retrieved_target_file}"
         fi
         echo "project_name_query=${project_name_query}" >> "$GITHUB_OUTPUT"
