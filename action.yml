@@ -71,11 +71,22 @@ runs:
         customHeaders: '{"Authorization": "token ${{ inputs.snyk-token }}"}'
         retry: 3
 
+    - name: Calculate project name query
+      id: calculate_project_name_query
+      shell: bash
+      run: |
+        project_name_query="${{ env.snyk_project_name }}"
+        retrieved_target_file=${{ env.snyk_target_file }}
+        if [ -n ${retrieved_target_file} ]; then
+          project_name_query="${project_name_query}%3A${retrieved_target_file}"
+        fi
+        echo "project_name_query=${project_name_query}" >> "$GITHUB_OUTPUT"
+
     - name: Get baseline project ID
       id: get_baseline_project_id
       uses: fjogeleit/http-request-action@v1.16.2
       with:
-        url: 'https://api.snyk.io/rest/orgs/${{ fromJson(steps.get_snyk_org_id.outputs.response).data[0].id }}/projects?version=${{ inputs.snyk-api-version }}&target_reference=${{ github.base_ref }}&names=${{ env.snyk_project_name }}%3A${{ env.snyk_target_file }}'
+        url: 'https://api.snyk.io/rest/orgs/${{ fromJson(steps.get_snyk_org_id.outputs.response).data[0].id }}/projects?version=${{ inputs.snyk-api-version }}&target_reference=${{ github.base_ref }}&names=${{ steps.calculate_project_name_query.outputs.project_name_query }}'
         method: 'GET'
         customHeaders: '{"Authorization": "token ${{ inputs.snyk-token }}"}'
         retry: 3
