@@ -96,7 +96,7 @@ runs:
       shell: bash
       run: |
         retrieved_baseline_project_id=${{ fromJson(steps.get_baseline_project_id.outputs.response).data[0].id }}
-        echo "snyk_baseline_project_id=${retrieved_baseline_project_id:-'${{ inputs.snyk-baseline-project-id }}'}" >> "$GITHUB_OUTPUT"
+        echo "snyk_baseline_project_id=${retrieved_baseline_project_id:-${{ inputs.snyk-baseline-project-id }}}" >> "$GITHUB_OUTPUT"
 
     - name: Get ignored issues
       id: get_ignored_issues
