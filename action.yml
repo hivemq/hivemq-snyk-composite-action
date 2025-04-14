@@ -148,7 +148,7 @@ runs:
 
     - name: Install snyk-delta and dependencies
       shell: bash
-      run: npm i -g snyk-delta@1.12.5
+      run: npm i -g snyk-delta@1.12.6
 
     - name: Check delta
       shell: bash
@@ -159,7 +159,7 @@ runs:
         if [ -n $snyk_baseline_project_id ]; then
           snyk_delta_args+=(--baselineProject $snyk_baseline_project_id)
         fi
-        cat snyk.json | snyk-delta "${snyk_delta_args[@]}"
+        cat snyk.json | snyk-delta -d "${snyk_delta_args[@]}"
         exit_code=$?
         if [ $exit_code -ne 0 ]; then
             if [ $exit_code -eq 1 ]; then
