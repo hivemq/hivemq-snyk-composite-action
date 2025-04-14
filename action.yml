@@ -148,7 +148,7 @@ runs:
 
     - name: Install snyk-delta and dependencies
       shell: bash
-      run: npm i -g snyk-delta
+      run: npm i -g snyk-delta@1.12.5
 
     - name: Check delta
       shell: bash
