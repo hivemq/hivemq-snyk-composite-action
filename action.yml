@@ -79,7 +79,7 @@ runs:
       shell: bash
       run: |
         project_name_query="${{ env.snyk_project_name }}"
-        retrieved_target_file=${{ env.snyk_target_file }}
+        retrieved_target_file="${{ env.snyk_target_file }}"
         if [ "${retrieved_target_file}" != "null" ]; then
           project_name_query="${project_name_query}%3A${retrieved_target_file}"
         fi
@@ -98,7 +98,12 @@ runs:
       id: choose_baseline_project_id
       shell: bash
       run: |
-        retrieved_baseline_project_id=${{ fromJson(steps.get_baseline_project_id.outputs.response).data[0].id }}
+        response_data='${{ toJson(fromJson(steps.get_baseline_project_id.outputs.response).data) }}'
+        if [ "$(echo "$response_data" | jq 'length')" -gt 0 ]; then
+          retrieved_baseline_project_id="$(echo "$response_data" | jq -r '.[0].id')"
+        else
+          retrieved_baseline_project_id=""
+        fi
         echo "snyk_baseline_project_id=${retrieved_baseline_project_id:-${{ inputs.snyk-baseline-project-id }}}" >> "$GITHUB_OUTPUT"
 
     - name: Get ignored issues
@@ -135,7 +140,7 @@ runs:
     - name: Set up node
       uses: actions/setup-node@v4.0.3
       with:
-        node-version: '14'
+        node-version: '20'
 
     - name: Install and run snyk-to-html
       shell: bash
@@ -147,7 +152,9 @@ runs:
       uses: actions/upload-artifact@v4.3.4
       with:
         name: ${{ inputs.artifact-name }}
-        path: ${{ inputs.artifact-name }}.html
+        path: | 
+          ${{ inputs.artifact-name }}.html
+          snyk-debug.log
 
     - name: Install snyk-delta and dependencies
       shell: bash
@@ -158,8 +165,8 @@ runs:
       run: |
         set +e
         snyk_delta_args=(--type vuln)
-        snyk_baseline_project_id=${{ steps.choose_baseline_project_id.outputs.snyk_baseline_project_id }}
-        if [ -n $snyk_baseline_project_id ]; then
+        snyk_baseline_project_id="${{ steps.choose_baseline_project_id.outputs.snyk_baseline_project_id }}"
+        if [ -n "$snyk_baseline_project_id" ]; then
           snyk_delta_args+=(--baselineProject $snyk_baseline_project_id)
         fi
         cat snyk.json | snyk-delta "${snyk_delta_args[@]}"
