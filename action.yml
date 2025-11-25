@@ -123,7 +123,7 @@ runs:
 
     - name: Run Snyk with the snyk ignore file
       shell: bash
-      run: snyk test ${{ inputs.snyk-args }} --quiet --json --json-file-output=snyk.json --policy-path=${{ env.snyk_project_name }}-policy
+      run: snyk test ${{ inputs.snyk-args }} --print-deps --json --json-file-output=snyk.json --policy-path=${{ env.snyk_project_name }}-policy >> snyk-debug.log
       env:
         SNYK_TOKEN: ${{ inputs.snyk-token }}
         ORG_GRADLE_PROJECT_hivemqCommonsUsername: ${{ inputs.github-username }}
