@@ -48,7 +48,7 @@ runs:
       shell: bash
       run: |
         echo "::group::Snyk summary"
-        snyk test ${{ inputs.snyk-args }} --quiet --json --json-file-output=snyk.json
+        snyk test ${{ inputs.snyk-args }} --print-deps --json --json-file-output=snyk.json >> snyk-debug.log
         echo "::endgroup::"
       env:
         SNYK_TOKEN: ${{ inputs.snyk-token }}
