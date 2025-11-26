@@ -48,7 +48,7 @@ runs:
       shell: bash
       run: |
         echo "::group::Snyk summary"
-        snyk test ${{ inputs.snyk-args }} --print-deps --json --json-file-output=snyk.json >> snyk-debug.log
+        snyk test ${{ inputs.snyk-args }} --print-deps --json --json-file-output=snyk.json >> snyk-debug.log 2>&1
         echo "::endgroup::"
       env:
         SNYK_TOKEN: ${{ inputs.snyk-token }}
@@ -128,7 +128,7 @@ runs:
 
     - name: Run Snyk with the snyk ignore file
       shell: bash
-      run: snyk test ${{ inputs.snyk-args }} --print-deps --json --json-file-output=snyk.json --policy-path=${{ env.snyk_project_name }}-policy >> snyk-debug.log
+      run: snyk test ${{ inputs.snyk-args }} --print-deps --json --json-file-output=snyk.json --policy-path=${{ env.snyk_project_name }}-policy >> snyk-debug.log 2>&1
       env:
         SNYK_TOKEN: ${{ inputs.snyk-token }}
         ORG_GRADLE_PROJECT_hivemqCommonsUsername: ${{ inputs.github-username }}
