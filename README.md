@@ -8,7 +8,6 @@ A GitHub composite action that checks for new security vulnerabilities in your p
 - Compares scan results against a baseline project (e.g., main branch)
 - Only fails if new issues are introduced
 - Generates HTML reports with scan results
-- Supports HiveMQ-specific enterprise authentication
 - Respects already ignored issues from the baseline project
 
 ## How It Works
