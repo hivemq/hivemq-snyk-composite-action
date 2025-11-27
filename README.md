@@ -1,6 +1,6 @@
 # HiveMQ Snyk Composite Action
 
-A GitHub composite action that checks for new security vulnerabilities and license issues in your project using Snyk, comparing results against a baseline project to identify only new issues.
+A GitHub composite action that checks for new security vulnerabilities in your project using Snyk, comparing results against a baseline project to identify only new issues.
 
 ## Features
 
