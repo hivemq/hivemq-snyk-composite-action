@@ -136,10 +136,6 @@ Ensure all required tokens and credentials are properly set:
 - Check GitHub tokens have access to private repositories if needed
 - Confirm HiveMQ enterprise credentials are valid
 
-## License
-
-This action is part of the HiveMQ infrastructure and follows HiveMQ's licensing terms.
-
 ## Contributing
 
 For issues or feature requests, please contact the HiveMQ infrastructure team.
