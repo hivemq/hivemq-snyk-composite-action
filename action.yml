@@ -42,7 +42,7 @@ runs:
   using: composite
   steps:
     - name: Setup Snyk
-      uses: snyk/actions/setup@0.4.0
+      uses: snyk/actions/setup@9adf32b1121593767fc3c057af55b55db032dc04 # v1
 
     - name: Run Snyk to check for vulnerabilities
       shell: bash
@@ -67,7 +67,7 @@ runs:
 
     - name: Get Snyk org ID
       id: get_snyk_org_id
-      uses: fjogeleit/http-request-action@v1.16.2
+      uses: fjogeleit/http-request-action@c0b95d02a088b47c1f2f4db04fd8af8bd19eee54 # v1
       with:
         url: 'https://api.snyk.io/rest/orgs?version=${{ inputs.snyk-api-version }}&slug=${{ env.snyk_org }}'
         method: 'GET'
@@ -87,7 +87,7 @@ runs:
 
     - name: Get baseline project ID
       id: get_baseline_project_id
-      uses: fjogeleit/http-request-action@v1.16.2
+      uses: fjogeleit/http-request-action@c0b95d02a088b47c1f2f4db04fd8af8bd19eee54 # v1
       with:
         url: 'https://api.snyk.io/rest/orgs/${{ fromJson(steps.get_snyk_org_id.outputs.response).data[0].id }}/projects?version=${{ inputs.snyk-api-version }}&target_reference=${{ github.base_ref }}&names=${{ steps.calculate_project_name_query.outputs.project_name_query }}'
         method: 'GET'
@@ -108,7 +108,7 @@ runs:
 
     - name: Get ignored issues
       id: get_ignored_issues
-      uses: fjogeleit/http-request-action@v1.16.2
+      uses: fjogeleit/http-request-action@c0b95d02a088b47c1f2f4db04fd8af8bd19eee54 # v1
       with:
         url: 'https://api.snyk.io/rest/orgs/${{ fromJson(steps.get_snyk_org_id.outputs.response).data[0].id }}/issues?version=${{ inputs.snyk-api-version }}&limit=100&ignored=true&scan_item.id=${{ steps.choose_baseline_project_id.outputs.snyk_baseline_project_id }}&scan_item.type=project'
         method: 'GET'
@@ -138,7 +138,7 @@ runs:
       continue-on-error: true
 
     - name: Set up node
-      uses: actions/setup-node@v4.0.3
+      uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
       with:
         node-version: '20'
 
@@ -149,7 +149,7 @@ runs:
         snyk-to-html -i snyk.json -o ${{ inputs.artifact-name }}.html
 
     - name: Use the Upload Artifact GitHub Action
-      uses: actions/upload-artifact@v4.3.4
+      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
       with:
         name: ${{ inputs.artifact-name }}
         path: | 
