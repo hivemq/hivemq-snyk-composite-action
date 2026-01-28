@@ -62,17 +62,17 @@ jobs:
 
 ## Inputs
 
-| Input | Required | Default | Description |
-|-------|----------|---------|-------------|
-| `snyk-token` | Yes | - | Authentication token for Snyk API |
-| `snyk-args` | No | `""` | Additional arguments passed to `snyk test` command |
-| `artifact-name` | No | `"snyk-report"` | Name of the artifact containing the HTML report and debug logs |
-| `github-username` | No | `""` | GitHub username for HiveMQ Commons repository access |
-| `github-token` | No | `""` | GitHub token for HiveMQ Commons repository access |
-| `enterprise-access-key` | No | `""` | HiveMQ Enterprise access key for enterprise module access |
-| `enterprise-secret-key` | No | `""` | HiveMQ Enterprise secret key for enterprise module access |
-| `snyk-baseline-project-id` | No | `""` | Explicit baseline project ID (auto-detected if not provided) |
-| `snyk-api-version` | No | `"2024-09-04"` | Snyk REST API version to use |
+| Input                      | Required | Default         | Description                                                    |
+|----------------------------|----------|-----------------|----------------------------------------------------------------|
+| `snyk-token`               | Yes      | -               | Authentication token for Snyk API                              |
+| `snyk-args`                | No       | `""`            | Additional arguments passed to `snyk test` command             |
+| `artifact-name`            | No       | `"snyk-report"` | Name of the artifact containing the HTML report and debug logs |
+| `github-username`          | No       | `""`            | GitHub username for HiveMQ Commons repository access           |
+| `github-token`             | No       | `""`            | GitHub token for HiveMQ Commons repository access              |
+| `enterprise-access-key`    | No       | `""`            | HiveMQ Enterprise access key for enterprise module access      |
+| `enterprise-secret-key`    | No       | `""`            | HiveMQ Enterprise secret key for enterprise module access      |
+| `snyk-baseline-project-id` | No       | `""`            | Explicit baseline project ID (auto-detected if not provided)   |
+| `snyk-api-version`         | No       | `"2024-09-04"`  | Snyk REST API version to use                                   |
 
 ## Outputs
 
@@ -117,7 +117,8 @@ To scan specific severity levels or project configurations:
 
 ### Action Fails with "New issues were found"
 
-This is expected behavior when new security vulnerabilities are introduced. Review the HTML report in the job artifacts to see details about the new issues.
+This is expected behavior when new security vulnerabilities are introduced.
+Review the HTML report in the job artifacts to see details about the new issues.
 
 ### Baseline Project Not Found
 
@@ -138,4 +139,4 @@ Ensure all required tokens and credentials are properly set:
 
 ## Contributing
 
-For issues or feature requests, please contact the HiveMQ infrastructure team.
+For issues or feature requests, please contact the HiveMQ Engineering Platform Team.
