@@ -67,7 +67,7 @@ runs:
 
     - name: Get Snyk org ID
       id: get_snyk_org_id
-      uses: fjogeleit/http-request-action@c0b95d02a088b47c1f2f4db04fd8af8bd19eee54 # v1
+      uses: fjogeleit/http-request-action@551353b829c3646756b2ec2b3694f819d7957495 # v2
       with:
         url: 'https://api.snyk.io/rest/orgs?version=${{ inputs.snyk-api-version }}&slug=${{ env.snyk_org }}'
         method: 'GET'
@@ -87,7 +87,7 @@ runs:
 
     - name: Get baseline project ID
       id: get_baseline_project_id
-      uses: fjogeleit/http-request-action@c0b95d02a088b47c1f2f4db04fd8af8bd19eee54 # v1
+      uses: fjogeleit/http-request-action@551353b829c3646756b2ec2b3694f819d7957495 # v2
       with:
         url: 'https://api.snyk.io/rest/orgs/${{ fromJson(steps.get_snyk_org_id.outputs.response).data[0].id }}/projects?version=${{ inputs.snyk-api-version }}&target_reference=${{ github.base_ref }}&names=${{ steps.calculate_project_name_query.outputs.project_name_query }}'
         method: 'GET'
@@ -108,7 +108,7 @@ runs:
 
     - name: Get ignored issues
       id: get_ignored_issues
-      uses: fjogeleit/http-request-action@c0b95d02a088b47c1f2f4db04fd8af8bd19eee54 # v1
+      uses: fjogeleit/http-request-action@551353b829c3646756b2ec2b3694f819d7957495 # v2
       with:
         url: 'https://api.snyk.io/rest/orgs/${{ fromJson(steps.get_snyk_org_id.outputs.response).data[0].id }}/issues?version=${{ inputs.snyk-api-version }}&limit=100&ignored=true&scan_item.id=${{ steps.choose_baseline_project_id.outputs.snyk_baseline_project_id }}&scan_item.type=project'
         method: 'GET'
