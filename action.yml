@@ -50,10 +50,7 @@ runs:
       run: |
         echo "::group::Snyk summary"
         snyk test ${{ inputs.snyk-args }} --print-deps --json --json-file-output=snyk.json >> snyk-debug.log 2>&1
-        snyk_exit_code=$?
         echo "::endgroup::"
-        echo "exit_code=$snyk_exit_code" >> "$GITHUB_OUTPUT"
-        exit $snyk_exit_code
       env:
         SNYK_TOKEN: ${{ inputs.snyk-token }}
         ORG_GRADLE_PROJECT_hivemqCommonsUsername: ${{ inputs.github-username }}
@@ -62,17 +59,46 @@ runs:
         ORG_GRADLE_PROJECT_hivemqEnterpriseSecretKey: ${{ inputs.enterprise-secret-key }}
       continue-on-error: true
 
-    - name: Print Snyk debug log on failure
-      if: steps.snyk_test.outputs.exit_code != '0'
+    - name: Validate Snyk output
+      id: validate_snyk
       shell: bash
-      run: cat snyk-debug.log
+      run: |
+        if [ ! -f snyk.json ]; then
+          echo "::error::snyk.json was not created. Snyk test likely failed to run."
+          echo
+          echo "DEBUG snyk test:"
+          cat snyk-debug.log
+          exit 1
+        fi
+        if ! jq empty snyk.json 2>/dev/null; then
+          echo "::error::snyk.json is not valid JSON."
+          echo
+          echo "DEBUG snyk test:"
+          cat snyk-debug.log
+          echo
+          echo "DEBUG snyk.json:"
+          cat snyk.json
+          exit 1
+        fi
+        snyk_org=$(jq -r '.org // empty' < snyk.json)
+        snyk_project_name=$(jq -r '.projectName // empty' < snyk.json)
+        if [ -z "$snyk_org" ] || [ -z "$snyk_project_name" ]; then
+          echo "::error::snyk.json is missing required fields (org or projectName)."
+          echo
+          echo "DEBUG snyk test:"
+          cat snyk-debug.log
+          echo
+          echo "DEBUG snyk.json:"
+          cat snyk.json
+          exit 1
+        fi
 
     - name: Get Snyk attributes
       shell: bash
       run: |
-        echo "snyk_org=$(jq -r .org < snyk.json)" >> "$GITHUB_ENV"
-        echo "snyk_project_name=$(jq -r .projectName < snyk.json)" >> "$GITHUB_ENV"
-        echo "snyk_target_file=$(jq -r .targetFile < snyk.json)" >> "$GITHUB_ENV"
+        echo "snyk_org=$(jq -r '.org' < snyk.json)" >> "$GITHUB_ENV"
+        echo "snyk_project_name=$(jq -r '.projectName' < snyk.json)" >> "$GITHUB_ENV"
+        echo "snyk_target_file=$(jq -r '.targetFile' < snyk.json)" >> "$GITHUB_ENV"
 
     - name: Get Snyk org ID
       id: get_snyk_org_id
