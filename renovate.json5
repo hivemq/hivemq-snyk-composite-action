@@ -11,4 +11,10 @@
     addLabels: [
         'engineering-platform-team',
     ],
+    packageRules: [
+        {
+            matchManagers: ['github-actions'],
+            pinDigests: true,
+        },
+    ],
 }
