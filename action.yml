@@ -45,11 +45,15 @@ runs:
       uses: snyk/actions/setup@9adf32b1121593767fc3c057af55b55db032dc04 # v1
 
     - name: Run Snyk to check for vulnerabilities
+      id: snyk_test
       shell: bash
       run: |
         echo "::group::Snyk summary"
         snyk test ${{ inputs.snyk-args }} --print-deps --json --json-file-output=snyk.json >> snyk-debug.log 2>&1
+        snyk_exit_code=$?
         echo "::endgroup::"
+        echo "exit_code=$snyk_exit_code" >> "$GITHUB_OUTPUT"
+        exit $snyk_exit_code
       env:
         SNYK_TOKEN: ${{ inputs.snyk-token }}
         ORG_GRADLE_PROJECT_hivemqCommonsUsername: ${{ inputs.github-username }}
@@ -57,6 +61,11 @@ runs:
         ORG_GRADLE_PROJECT_hivemqEnterpriseAccessKey: ${{ inputs.enterprise-access-key }}
         ORG_GRADLE_PROJECT_hivemqEnterpriseSecretKey: ${{ inputs.enterprise-secret-key }}
       continue-on-error: true
+
+    - name: Print Snyk debug log on failure
+      if: steps.snyk_test.outputs.exit_code != '0'
+      shell: bash
+      run: cat snyk-debug.log
 
     - name: Get Snyk attributes
       shell: bash
