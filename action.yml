@@ -118,17 +118,14 @@ runs:
     - name: Calculate project name query
       id: calculate_project_name_query
       shell: bash
-      env:
-        SNYK_PROJECT_NAME: ${{ env.snyk_project_name }}
-        SNYK_TARGET_FILE: ${{ env.snyk_target_file }}
       run: |
         # The REST API rejects reserved characters in `names`, and a Gradle sub-project scan
         # reports "rootProject/subProject". Encode each part, then join them with the %3A
         # separator the API expects. jq's @uri leaves unreserved characters alone, so values
         # such as "build.gradle.kts" or "pnpm-lock.yaml" are passed through unchanged.
-        project_name_query=$(jq -rn --arg v "$SNYK_PROJECT_NAME" '$v|@uri')
-        if [ "$SNYK_TARGET_FILE" != "null" ]; then
-          encoded_target_file=$(jq -rn --arg v "$SNYK_TARGET_FILE" '$v|@uri')
+        project_name_query=$(jq -rn --arg v "$snyk_project_name" '$v|@uri')
+        if [ "$snyk_target_file" != "null" ]; then
+          encoded_target_file=$(jq -rn --arg v "$snyk_target_file" '$v|@uri')
           project_name_query="${project_name_query}%3A${encoded_target_file}"
         fi
         echo "project_name_query=${project_name_query}" >> "$GITHUB_OUTPUT"
