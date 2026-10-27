@@ -1,141 +1,63 @@
 # HiveMQ Snyk Composite Action
 
-A GitHub composite action that checks for new security vulnerabilities in your project using Snyk, comparing results against a baseline project to identify only new issues.
+A GitHub composite action that runs `snyk monitor` on a Gradle project and fails instead of uploading an incomplete dependency graph.
 
-## Features
+## Why
 
-- Runs Snyk security scans on your project
-- Compares scan results against a baseline project (e.g., main branch)
-- Only fails if new issues are introduced
-- Generates HTML reports with scan results
-- Respects already ignored issues from the baseline project
+The Snyk CLI resolves Gradle dependencies leniently and uploads whatever graph it could build:
+
+- An unresolved dependency (repository outage, expired credentials, missing SNAPSHOT) is kept without its transitive dependencies.
+- A configuration pattern that matches nothing yields an empty graph.
+
+In both cases the scan succeeds, and Snyk reports every issue in the missing part of the graph as resolved.
 
 ## How It Works
 
-1. Runs an initial Snyk test to gather project information
-2. Queries the Snyk API to find the baseline project (typically from the base branch)
-3. Retrieves ignored issues from the baseline project
-4. Runs Snyk test again with the ignore policy applied
-5. Generates an HTML report of findings
-6. Uses `snyk-delta` to compare current results with baseline
-7. Fails only if new vulnerabilities are detected
+1. Validates the inputs, finds the Gradle build file in `path` and installs the Snyk CLI
+2. Runs `snyk monitor` on that build file with the options from the inputs and passes an init script to the Gradle build that Snyk starts
+3. The init script checks the scanned configurations before Snyk builds the dependency graph and fails the build if
+   - a dependency or artifact could not be resolved, or
+   - no configuration that Snyk scans matches the `configuration-matching` pattern
+4. A failed build fails the step, and nothing is uploaded to Snyk
+
+Gradle runs with `--no-scan`, so builds with the Develocity plugin do not try to publish a Build Scan.
 
 ## Usage
 
-### Basic Example
-
 ```yaml
-name: Snyk Security Check
-
-on:
-  pull_request:
-    branches: [main]
-
-jobs:
-  security-scan:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Check for new Snyk issues
-        uses: hivemq/hivemq-snyk-composite-action@main
-        with:
-          snyk-token: ${{ secrets.SNYK_TOKEN }}
-```
-
-### Advanced Example with All Options
-
-```yaml
-- name: Check for new Snyk issues
-  uses: hivemq/hivemq-snyk-composite-action@main
+- name: Run Snyk monitor
+  uses: hivemq/hivemq-snyk-composite-action@<sha> # v3
   with:
     snyk-token: ${{ secrets.SNYK_TOKEN }}
-    snyk-args: '--severity-threshold=high --all-projects'
-    artifact-name: 'security-report'
-    github-username: ${{ secrets.HIVEMQ_COMMONS_USERNAME }}
-    github-token: ${{ secrets.HIVEMQ_COMMONS_TOKEN }}
-    enterprise-access-key: ${{ secrets.HIVEMQ_ENTERPRISE_ACCESS_KEY }}
-    enterprise-secret-key: ${{ secrets.HIVEMQ_ENTERPRISE_SECRET_KEY }}
-    snyk-baseline-project-id: 'your-baseline-project-id'
-    snyk-api-version: '2024-09-04'
+    org: hivemq-broker
+    project-name: hivemq-enterprise
+    remote-repo-url: hivemq-enterprise
+    project-lifecycle: development
+    path: hivemq-enterprise
+  env:
+    ORG_GRADLE_PROJECT_hivemqCommonsUsername: ${{ secrets.JENKINS_GITHUB_USERNAME }}
+    ORG_GRADLE_PROJECT_hivemqCommonsPassword: ${{ secrets.JENKINS_GITHUB_TOKEN }}
 ```
+
+Environment variables of the step, like the Gradle properties above, are available to Gradle.
+
+The action supports Linux runners only.
 
 ## Inputs
 
-| Input                      | Required | Default         | Description                                                    |
-|----------------------------|----------|-----------------|----------------------------------------------------------------|
-| `snyk-token`               | Yes      | -               | Authentication token for Snyk API                              |
-| `snyk-args`                | No       | `""`            | Additional arguments passed to `snyk test` command             |
-| `artifact-name`            | No       | `"snyk-report"` | Name of the artifact containing the HTML report and debug logs |
-| `github-username`          | No       | `""`            | GitHub username for HiveMQ Commons repository access           |
-| `github-token`             | No       | `""`            | GitHub token for HiveMQ Commons repository access              |
-| `enterprise-access-key`    | No       | `""`            | HiveMQ Enterprise access key for enterprise module access      |
-| `enterprise-secret-key`    | No       | `""`            | HiveMQ Enterprise secret key for enterprise module access      |
-| `snyk-baseline-project-id` | No       | `""`            | Explicit baseline project ID (auto-detected if not provided)   |
-| `snyk-api-version`         | No       | `"2024-09-04"`  | Snyk REST API version to use                                   |
+| Input                    | Required                         | Default                  | Description                                                                          |
+|--------------------------|----------------------------------|--------------------------|--------------------------------------------------------------------------------------|
+| `snyk-token`             | Yes                              | -                        | Authentication token for Snyk                                                        |
+| `org`                    | Yes                              | -                        | Snyk organization to monitor into                                                    |
+| `project-name`           | Yes, unless `sub-project` is set | -                        | Name of the Snyk project                                                             |
+| `remote-repo-url`        | Yes                              | -                        | Snyk target that groups the project                                                  |
+| `project-lifecycle`      | Yes                              | -                        | Lifecycle of the Snyk project, `development` or `production`                         |
+| `target-reference`       | No                               | `${{ github.ref_name }}` | Reference of the project within its target, like a branch or a version               |
+| `path`                   | No                               | `.`                      | Directory with the `build.gradle` or `build.gradle.kts` to monitor                   |
+| `sub-project`            | No                               | `""`                     | Gradle sub-project to monitor; without `project-name`, Snyk derives the project name |
+| `configuration-matching` | No                               | `^runtimeClasspath$`     | Pattern of the Gradle configurations to scan                                         |
 
-## Outputs
-
-This action uploads an artifact containing:
-- `{artifact-name}.html` - Formatted HTML report of Snyk findings
-- `snyk-debug.log` - Debug logs from Snyk execution
-
-## Prerequisites
-
-- Your repository must be set up with Snyk monitoring
-- A baseline project should exist in Snyk (typically created from your main branch)
-- Required secrets must be configured in your GitHub repository settings
-
-## Common Use Cases
-
-### Gradle Projects with HiveMQ Dependencies
-
-For Gradle projects that need access to HiveMQ Commons or Enterprise modules:
-
-```yaml
-- uses: hivemq/hivemq-snyk-composite-action@main
-  with:
-    snyk-token: ${{ secrets.SNYK_TOKEN }}
-    github-username: ${{ secrets.HIVEMQ_COMMONS_USERNAME }}
-    github-token: ${{ secrets.HIVEMQ_COMMONS_TOKEN }}
-    enterprise-access-key: ${{ secrets.HIVEMQ_ENTERPRISE_ACCESS_KEY }}
-    enterprise-secret-key: ${{ secrets.HIVEMQ_ENTERPRISE_SECRET_KEY }}
-```
-
-### Custom Snyk Arguments
-
-To scan specific severity levels or project configurations:
-
-```yaml
-- uses: hivemq/hivemq-snyk-composite-action@main
-  with:
-    snyk-token: ${{ secrets.SNYK_TOKEN }}
-    snyk-args: '--severity-threshold=medium --all-projects --exclude=test/**'
-```
-
-## Troubleshooting
-
-### Action Fails with "New issues were found"
-
-This is expected behavior when new security vulnerabilities are introduced.
-Review the HTML report in the job artifacts to see details about the new issues.
-
-### Baseline Project Not Found
-
-If the baseline project can't be auto-detected, you can specify it explicitly:
-
-```yaml
-snyk-baseline-project-id: 'your-project-id-from-snyk'
-```
-
-Find your project ID in the Snyk dashboard or API.
-
-### Authentication Errors
-
-Ensure all required tokens and credentials are properly set:
-- Verify `SNYK_TOKEN` has appropriate permissions
-- Check GitHub tokens have access to private repositories if needed
-- Confirm HiveMQ enterprise credentials are valid
+Snyk runs with `-d`, so the step log contains its debug output.
 
 ## Contributing
 

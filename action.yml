@@ -1,230 +1,110 @@
-name: 'Check for new Snyk issues'
-description: 'This is an action that checks if there are new license or vulnerability issues compared to a baseline project.'
+name: 'Run Snyk monitor on a Gradle project'
+description: 'This is an action that runs snyk monitor on a Gradle project and fails instead of uploading an incomplete dependency graph.'
 
 inputs:
-  snyk-args:
-    default: ""
-    required: false
-    description: "Arguments passed to the Snyk test command"
-  artifact-name:
-    default: "snyk-report"
-    required: false
-    description: "The name of the Snyk report generated"
   snyk-token:
     required: true
     description: "The token used to authenticate with Snyk"
-  github-username:
+  org:
+    required: true
+    description: "The Snyk organization to monitor into"
+  project-name:
+    required: false
+    description: "The name of the Snyk project, required unless sub-project is set"
+  remote-repo-url:
+    required: true
+    description: "The Snyk target that groups the project"
+  project-lifecycle:
+    required: true
+    description: "The lifecycle of the Snyk project, development or production"
+  target-reference:
+    default: ${{ github.ref_name }}
+    required: false
+    description: "The reference of the project within its target, like a branch or a version"
+  path:
+    default: "."
+    required: false
+    description: "The directory of the Gradle build"
+  sub-project:
     default: ""
     required: false
-    description: "GitHub username"
-  github-token:
-    default: ""
+    description: "The Gradle sub-project to monitor; without project-name, Snyk derives the project name"
+  configuration-matching:
+    default: "^runtimeClasspath$"
     required: false
-    description: "GitHub token"
-  enterprise-access-key:
-    default: ""
-    required: false
-    description: "HiveMQ Enterprise Access Key"
-  enterprise-secret-key:
-    default: ""
-    required: false
-    description: "HiveMQ Enterprise Secret Key"
-  snyk-baseline-project-id:
-    default: ""
-    required: false
-    description: "ID of project that is used as a baseline"
-  snyk-api-version:
-    default: "2024-09-04"
-    required: false
-    description: "Snyk API version to use"
+    description: "Pattern of the Gradle configurations to scan"
 
 runs:
   using: composite
   steps:
+    - name: Validate inputs
+      id: validate
+      shell: bash
+      run: |
+        fail() {
+          echo "::error::$1"
+          exit 1
+        }
+        [[ -n "${SNYK_TOKEN}" ]] || fail "The snyk-token input is required"
+        [[ -n "${ORG}" ]] || fail "The org input is required"
+        [[ -n "${PROJECT_NAME}" || -n "${SUB_PROJECT}" ]] || fail "The project-name input is required unless sub-project is set"
+        [[ -n "${REMOTE_REPO_URL}" ]] || fail "The remote-repo-url input is required"
+        [[ "${PROJECT_LIFECYCLE}" == development || "${PROJECT_LIFECYCLE}" == production ]] || fail "The project-lifecycle input must be development or production"
+        [[ -n "${TARGET_REFERENCE}" ]] || fail "The target-reference input must not be empty"
+        [[ -n "${MONITOR_PATH}" ]] || fail "The path input must not be empty"
+        [[ -n "${CONFIGURATION_MATCHING}" ]] || fail "The configuration-matching input must not be empty"
+        if [[ -f "${MONITOR_PATH}/build.gradle" ]]; then
+          echo "build-file=build.gradle" >> "${GITHUB_OUTPUT}"
+        elif [[ -f "${MONITOR_PATH}/build.gradle.kts" ]]; then
+          echo "build-file=build.gradle.kts" >> "${GITHUB_OUTPUT}"
+        else
+          fail "The path ${MONITOR_PATH} contains no build.gradle or build.gradle.kts"
+        fi
+      env:
+        SNYK_TOKEN: ${{ inputs.snyk-token }}
+        ORG: ${{ inputs.org }}
+        PROJECT_NAME: ${{ inputs.project-name }}
+        SUB_PROJECT: ${{ inputs.sub-project }}
+        REMOTE_REPO_URL: ${{ inputs.remote-repo-url }}
+        PROJECT_LIFECYCLE: ${{ inputs.project-lifecycle }}
+        TARGET_REFERENCE: ${{ inputs.target-reference }}
+        MONITOR_PATH: ${{ inputs.path }}
+        CONFIGURATION_MATCHING: ${{ inputs.configuration-matching }}
+
     - name: Setup Snyk
       uses: snyk/actions/setup@9adf32b1121593767fc3c057af55b55db032dc04 # v1
 
-    - name: Run Snyk to check for vulnerabilities
-      id: snyk_test
+    - name: Run Snyk monitor
       shell: bash
       run: |
-        echo "::group::Snyk summary"
-        snyk test ${{ inputs.snyk-args }} --print-deps --json --json-file-output=snyk.json >> snyk-debug.log 2>&1
-        echo "::endgroup::"
+        options=(
+          # Snyk prefers other manifests in the same directory, like package.json or pom.xml, over the Gradle build file
+          "--file=${BUILD_FILE}"
+          "--org=${ORG}"
+          "--remote-repo-url=${REMOTE_REPO_URL}"
+          "--project-lifecycle=${PROJECT_LIFECYCLE}"
+          "--target-reference=${TARGET_REFERENCE}"
+          "--configuration-matching=${CONFIGURATION_MATCHING}"
+          -d
+        )
+        if [[ -n "${PROJECT_NAME}" ]]; then
+          options+=("--project-name=${PROJECT_NAME}")
+        fi
+        if [[ -n "${SUB_PROJECT}" ]]; then
+          options+=("--sub-project=${SUB_PROJECT}")
+        fi
+        # Snyk's test flow drops the path argument when --file is set, so the monitor runs in the build directory instead of relying on it
+        cd "${MONITOR_PATH}"
+        # the snyk command of the setup action is a wrapper that passes its arguments through eval
+        snyk-linux monitor "${options[@]}" -- -I "${GITHUB_ACTION_PATH}/strict-resolution.gradle" --no-scan
       env:
         SNYK_TOKEN: ${{ inputs.snyk-token }}
-        ORG_GRADLE_PROJECT_hivemqCommonsUsername: ${{ inputs.github-username }}
-        ORG_GRADLE_PROJECT_hivemqCommonsPassword: ${{ inputs.github-token }}
-        ORG_GRADLE_PROJECT_hivemqEnterpriseAccessKey: ${{ inputs.enterprise-access-key }}
-        ORG_GRADLE_PROJECT_hivemqEnterpriseSecretKey: ${{ inputs.enterprise-secret-key }}
-      continue-on-error: true
-
-    - name: Validate Snyk output
-      id: validate_snyk
-      shell: bash
-      run: |
-        if [ ! -f snyk.json ]; then
-          echo "::error::snyk.json was not created. Snyk test likely failed to run."
-          echo
-          echo "DEBUG snyk test:"
-          cat snyk-debug.log
-          exit 1
-        fi
-        if ! jq empty snyk.json 2>/dev/null; then
-          echo "::error::snyk.json is not valid JSON."
-          echo
-          echo "DEBUG snyk test:"
-          cat snyk-debug.log
-          echo
-          echo "DEBUG snyk.json:"
-          cat snyk.json
-          exit 1
-        fi
-        snyk_org=$(jq -r '.org // empty' < snyk.json)
-        snyk_project_name=$(jq -r '.projectName // empty' < snyk.json)
-        if [ -z "$snyk_org" ] || [ -z "$snyk_project_name" ]; then
-          echo "::error::snyk.json is missing required fields (org or projectName)."
-          echo
-          echo "DEBUG snyk test:"
-          cat snyk-debug.log
-          echo
-          echo "DEBUG snyk.json:"
-          cat snyk.json
-          exit 1
-        fi
-
-    - name: Get Snyk attributes
-      shell: bash
-      run: |
-        snyk_project_name=$(jq -r '.projectName' < snyk.json)
-        echo "snyk_org=$(jq -r '.org' < snyk.json)" >> "$GITHUB_ENV"
-        echo "snyk_project_name=${snyk_project_name}" >> "$GITHUB_ENV"
-        echo "snyk_target_file=$(jq -r '.targetFile' < snyk.json)" >> "$GITHUB_ENV"
-        # A Gradle sub-project scan reports its name as "rootProject/subProject". Slashes are
-        # valid in a Snyk project name but not within a single path segment, so derive a flat
-        # slug for the files and directories created below. For names with no slash the slug
-        # is identical to the name, leaving existing callers unaffected.
-        echo "snyk_project_slug=${snyk_project_name//\//_}" >> "$GITHUB_ENV"
-
-    - name: Get Snyk org ID
-      id: get_snyk_org_id
-      uses: fjogeleit/http-request-action@f98bb26551cd1af7d3eb2674578a80754ece88db # v2
-      with:
-        url: 'https://api.snyk.io/rest/orgs?version=${{ inputs.snyk-api-version }}&slug=${{ env.snyk_org }}'
-        method: 'GET'
-        customHeaders: '{"Authorization": "token ${{ inputs.snyk-token }}"}'
-        retry: 3
-
-    - name: Calculate project name query
-      id: calculate_project_name_query
-      shell: bash
-      run: |
-        # The REST API rejects reserved characters in `names`, and a Gradle sub-project scan
-        # reports "rootProject/subProject". Encode each part, then join them with the %3A
-        # separator the API expects. jq's @uri leaves unreserved characters alone, so values
-        # such as "build.gradle.kts" or "pnpm-lock.yaml" are passed through unchanged.
-        project_name_query=$(jq -rn --arg v "$snyk_project_name" '$v|@uri')
-        if [ "$snyk_target_file" != "null" ]; then
-          encoded_target_file=$(jq -rn --arg v "$snyk_target_file" '$v|@uri')
-          project_name_query="${project_name_query}%3A${encoded_target_file}"
-        fi
-        echo "project_name_query=${project_name_query}" >> "$GITHUB_OUTPUT"
-
-    - name: Get baseline project ID
-      id: get_baseline_project_id
-      uses: fjogeleit/http-request-action@f98bb26551cd1af7d3eb2674578a80754ece88db # v2
-      with:
-        url: 'https://api.snyk.io/rest/orgs/${{ fromJson(steps.get_snyk_org_id.outputs.response).data[0].id }}/projects?version=${{ inputs.snyk-api-version }}&target_reference=${{ github.base_ref }}&names=${{ steps.calculate_project_name_query.outputs.project_name_query }}'
-        method: 'GET'
-        customHeaders: '{"Authorization": "token ${{ inputs.snyk-token }}"}'
-        retry: 3
-
-    - name: Choose baseline project ID
-      id: choose_baseline_project_id
-      shell: bash
-      run: |
-        response_data='${{ toJson(fromJson(steps.get_baseline_project_id.outputs.response).data) }}'
-        if [ "$(echo "$response_data" | jq 'length')" -gt 0 ]; then
-          retrieved_baseline_project_id="$(echo "$response_data" | jq -r '.[0].id')"
-        else
-          retrieved_baseline_project_id=""
-        fi
-        echo "snyk_baseline_project_id=${retrieved_baseline_project_id:-${{ inputs.snyk-baseline-project-id }}}" >> "$GITHUB_OUTPUT"
-
-    - name: Get ignored issues
-      id: get_ignored_issues
-      uses: fjogeleit/http-request-action@f98bb26551cd1af7d3eb2674578a80754ece88db # v2
-      with:
-        url: 'https://api.snyk.io/rest/orgs/${{ fromJson(steps.get_snyk_org_id.outputs.response).data[0].id }}/issues?version=${{ inputs.snyk-api-version }}&limit=100&ignored=true&scan_item.id=${{ steps.choose_baseline_project_id.outputs.snyk_baseline_project_id }}&scan_item.type=project'
-        method: 'GET'
-        customHeaders: '{"Authorization": "token ${{ inputs.snyk-token }}"}'
-        responseFile: 'ignored_issues_${{ env.snyk_project_slug }}.json'
-        retry: 3
-
-    - name: Create ignore file based on already ignored issues
-      id: create_ignore_file
-      shell: bash
-      run: |
-        snyk auth ${{ inputs.snyk-token }}
-        mkdir -p ${{ env.snyk_project_slug }}-policy
-        jq '.data[] | .attributes.key' ignored_issues_${{ env.snyk_project_slug }}.json | while read issue_id; do
-          snyk ignore --id=$issue_id --policy-path=${{ env.snyk_project_slug }}-policy
-        done
-
-    - name: Run Snyk with the snyk ignore file
-      shell: bash
-      run: snyk test ${{ inputs.snyk-args }} --print-deps --json --json-file-output=snyk.json --policy-path=${{ env.snyk_project_slug }}-policy >> snyk-debug.log 2>&1
-      env:
-        SNYK_TOKEN: ${{ inputs.snyk-token }}
-        ORG_GRADLE_PROJECT_hivemqCommonsUsername: ${{ inputs.github-username }}
-        ORG_GRADLE_PROJECT_hivemqCommonsPassword: ${{ inputs.github-token }}
-        ORG_GRADLE_PROJECT_hivemqEnterpriseAccessKey: ${{ inputs.enterprise-access-key }}
-        ORG_GRADLE_PROJECT_hivemqEnterpriseSecretKey: ${{ inputs.enterprise-secret-key }}
-      continue-on-error: true
-
-    - name: Set up node
-      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
-      with:
-        node-version: '20'
-
-    - name: Install and run snyk-to-html
-      shell: bash
-      run: |
-        npm i -g snyk-to-html
-        snyk-to-html -i snyk.json -o ${{ inputs.artifact-name }}.html
-
-    - name: Use the Upload Artifact GitHub Action
-      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
-      with:
-        name: ${{ inputs.artifact-name }}
-        path: | 
-          ${{ inputs.artifact-name }}.html
-          snyk-debug.log
-
-    - name: Install snyk-delta and dependencies
-      shell: bash
-      run: npm i -g snyk-delta@1.12.7
-
-    - name: Check delta
-      shell: bash
-      run: |
-        set +e
-        snyk_delta_args=(--type vuln)
-        snyk_baseline_project_id="${{ steps.choose_baseline_project_id.outputs.snyk_baseline_project_id }}"
-        if [ -n "$snyk_baseline_project_id" ]; then
-          snyk_delta_args+=(--baselineProject $snyk_baseline_project_id)
-        fi
-        cat snyk.json | snyk-delta "${snyk_delta_args[@]}"
-        exit_code=$?
-        if [ $exit_code -ne 0 ]; then
-            if [ $exit_code -eq 1 ]; then
-              echo "::error ::New issues were found! For more info, refer to the Snyk report found in the Artifacts section of the job summary."
-            fi
-            exit $exit_code
-        fi
-      env:
-        SNYK_TOKEN: ${{ inputs.snyk-token }}
-        ORG_GRADLE_PROJECT_hivemqCommonsUsername: ${{ inputs.github-username }}
-        ORG_GRADLE_PROJECT_hivemqCommonsPassword: ${{ inputs.github-token }}
-        ORG_GRADLE_PROJECT_hivemqEnterpriseAccessKey: ${{ inputs.enterprise-access-key }}
-        ORG_GRADLE_PROJECT_hivemqEnterpriseSecretKey: ${{ inputs.enterprise-secret-key }}
+        ORG: ${{ inputs.org }}
+        PROJECT_NAME: ${{ inputs.project-name }}
+        SUB_PROJECT: ${{ inputs.sub-project }}
+        REMOTE_REPO_URL: ${{ inputs.remote-repo-url }}
+        PROJECT_LIFECYCLE: ${{ inputs.project-lifecycle }}
+        TARGET_REFERENCE: ${{ inputs.target-reference }}
+        MONITOR_PATH: ${{ inputs.path }}
+        BUILD_FILE: ${{ steps.validate.outputs.build-file }}
+        CONFIGURATION_MATCHING: ${{ inputs.configuration-matching }}
