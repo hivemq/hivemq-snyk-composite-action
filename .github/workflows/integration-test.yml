@@ -1,0 +1,277 @@
+name: Integration tests
+
+on:
+  push:
+    branches: [ "**" ]
+  # the action installs the latest Snyk CLI, so a new release can change the behavior without a push to this repository
+  schedule:
+    - cron: "0 6 * * 1"
+
+concurrency:
+  group: integration-test-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  integration-test:
+    name: Integration test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout hivemq-snyk-composite-action
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6
+        with:
+          gradle-version: 9.4.1
+
+      - name: Monitor a complete build with a parenthesized configuration pattern
+        uses: ./
+        with:
+          snyk-token: ${{ secrets.SNYK_TOKEN }}
+          org: hivemq-test
+          project-name: hivemq-snyk-composite-action-complete
+          remote-repo-url: hivemq-snyk-composite-action
+          project-lifecycle: development
+          target-reference: integration-test
+          path: integration-test/complete
+          configuration-matching: ^(runtimeClasspath)$
+
+      - name: Monitor a build with an empty runtime classpath
+        uses: ./
+        with:
+          snyk-token: ${{ secrets.SNYK_TOKEN }}
+          org: hivemq-test
+          project-name: hivemq-snyk-composite-action-empty-runtime
+          remote-repo-url: hivemq-snyk-composite-action
+          project-lifecycle: development
+          target-reference: integration-test
+          path: integration-test/empty-runtime
+
+      - name: Monitor a composite build with the default target reference
+        uses: ./
+        with:
+          snyk-token: ${{ secrets.SNYK_TOKEN }}
+          org: hivemq-test
+          project-name: hivemq-snyk-composite-action-composite
+          remote-repo-url: hivemq-snyk-composite-action
+          project-lifecycle: development
+          path: integration-test/composite
+
+      - name: Monitor a sub-project without a project name
+        uses: ./
+        with:
+          snyk-token: ${{ secrets.SNYK_TOKEN }}
+          org: hivemq-test
+          sub-project: app
+          remote-repo-url: hivemq-snyk-composite-action
+          project-lifecycle: development
+          target-reference: integration-test
+          path: integration-test/multi-project
+        env:
+          ORG_GRADLE_PROJECT_slf4jVersion: 2.0.17
+
+      - name: Monitor a sub-project directory
+        uses: ./
+        with:
+          snyk-token: ${{ secrets.SNYK_TOKEN }}
+          org: hivemq-test
+          project-name: hivemq-snyk-composite-action-sub-project-directory
+          remote-repo-url: hivemq-snyk-composite-action
+          project-lifecycle: development
+          target-reference: integration-test
+          path: integration-test/multi-project/app
+        env:
+          ORG_GRADLE_PROJECT_slf4jVersion: 2.0.17
+
+      - name: Monitor a nested sub-project
+        uses: ./
+        with:
+          snyk-token: ${{ secrets.SNYK_TOKEN }}
+          org: hivemq-test
+          project-name: hivemq-snyk-composite-action-nested-sub-project
+          sub-project: parent/child
+          remote-repo-url: hivemq-snyk-composite-action
+          project-lifecycle: development
+          target-reference: integration-test
+          path: integration-test/multi-project
+        env:
+          ORG_GRADLE_PROJECT_slf4jVersion: 2.0.17
+
+      - name: Monitor a build with a missing dependency
+        id: missing-dependency
+        continue-on-error: true
+        uses: ./
+        with:
+          snyk-token: ${{ secrets.SNYK_TOKEN }}
+          org: hivemq-test
+          project-name: hivemq-snyk-composite-action-missing-dependency
+          remote-repo-url: hivemq-snyk-composite-action
+          project-lifecycle: development
+          target-reference: integration-test
+          path: integration-test/missing-dependency
+
+      - name: Monitor a build with a missing artifact
+        id: missing-artifact
+        continue-on-error: true
+        uses: ./
+        with:
+          snyk-token: ${{ secrets.SNYK_TOKEN }}
+          org: hivemq-test
+          project-name: hivemq-snyk-composite-action-missing-artifact
+          remote-repo-url: hivemq-snyk-composite-action
+          project-lifecycle: development
+          target-reference: integration-test
+          path: integration-test/missing-artifact
+
+      - name: Monitor a build with a missing dependency next to an npm lockfile
+        id: mixed-manifests
+        continue-on-error: true
+        uses: ./
+        with:
+          snyk-token: ${{ secrets.SNYK_TOKEN }}
+          org: hivemq-test
+          project-name: hivemq-snyk-composite-action-mixed-manifests
+          remote-repo-url: hivemq-snyk-composite-action
+          project-lifecycle: development
+          target-reference: integration-test
+          path: integration-test/mixed-manifests
+
+      - name: Monitor a directory without a Gradle build file
+        id: missing-build-file
+        continue-on-error: true
+        uses: ./
+        with:
+          snyk-token: ${{ secrets.SNYK_TOKEN }}
+          org: hivemq-test
+          project-name: hivemq-snyk-composite-action-missing-build-file
+          remote-repo-url: hivemq-snyk-composite-action
+          project-lifecycle: development
+          target-reference: integration-test
+          path: integration-test
+
+      - name: Monitor with a configuration pattern that matches nothing
+        id: no-matching-configuration
+        continue-on-error: true
+        uses: ./
+        with:
+          snyk-token: ${{ secrets.SNYK_TOKEN }}
+          org: hivemq-test
+          project-name: hivemq-snyk-composite-action-no-matching-configuration
+          remote-repo-url: hivemq-snyk-composite-action
+          project-lifecycle: development
+          target-reference: integration-test
+          path: integration-test/complete
+          configuration-matching: ^doesNotExist$
+
+      - name: Monitor with a configuration pattern that matches only a consumable configuration without dependencies
+        id: consumable-configuration
+        continue-on-error: true
+        uses: ./
+        with:
+          snyk-token: ${{ secrets.SNYK_TOKEN }}
+          org: hivemq-test
+          project-name: hivemq-snyk-composite-action-consumable-configuration
+          remote-repo-url: hivemq-snyk-composite-action
+          project-lifecycle: development
+          target-reference: integration-test
+          path: integration-test/consumable
+          configuration-matching: ^aggregate$
+
+      - name: Monitor with configuration attributes
+        id: configuration-attributes
+        continue-on-error: true
+        uses: ./
+        with:
+          snyk-token: ${{ secrets.SNYK_TOKEN }}
+          org: hivemq-test
+          project-name: hivemq-snyk-composite-action-configuration-attributes
+          remote-repo-url: hivemq-snyk-composite-action
+          project-lifecycle: development
+          target-reference: integration-test
+          path: integration-test/complete
+        env:
+          ORG_GRADLE_PROJECT_confAttr: usage:java-runtime
+
+      - name: Monitor with an invalid project lifecycle
+        id: invalid-project-lifecycle
+        continue-on-error: true
+        uses: ./
+        with:
+          snyk-token: ${{ secrets.SNYK_TOKEN }}
+          org: hivemq-test
+          project-name: hivemq-snyk-composite-action-invalid-project-lifecycle
+          remote-repo-url: hivemq-snyk-composite-action
+          project-lifecycle: staging
+          target-reference: integration-test
+          path: integration-test/complete
+
+      - name: Monitor without a project name
+        id: missing-project-name
+        continue-on-error: true
+        uses: ./
+        with:
+          snyk-token: ${{ secrets.SNYK_TOKEN }}
+          org: hivemq-test
+          remote-repo-url: hivemq-snyk-composite-action
+          project-lifecycle: development
+          target-reference: integration-test
+          path: integration-test/complete
+
+      - name: Monitor with an empty path
+        id: empty-path
+        continue-on-error: true
+        uses: ./
+        with:
+          snyk-token: ${{ secrets.SNYK_TOKEN }}
+          org: hivemq-test
+          project-name: hivemq-snyk-composite-action-empty-path
+          remote-repo-url: hivemq-snyk-composite-action
+          project-lifecycle: development
+          target-reference: integration-test
+          path: ""
+
+      - name: Monitor with an empty configuration pattern
+        id: empty-configuration-matching
+        continue-on-error: true
+        uses: ./
+        with:
+          snyk-token: ${{ secrets.SNYK_TOKEN }}
+          org: hivemq-test
+          project-name: hivemq-snyk-composite-action-empty-configuration-matching
+          remote-repo-url: hivemq-snyk-composite-action
+          project-lifecycle: development
+          target-reference: integration-test
+          path: integration-test/complete
+          configuration-matching: ""
+
+      - name: Assert that the invalid monitors failed
+        env:
+          MISSING_DEPENDENCY: ${{ steps.missing-dependency.outcome }}
+          MISSING_ARTIFACT: ${{ steps.missing-artifact.outcome }}
+          MIXED_MANIFESTS: ${{ steps.mixed-manifests.outcome }}
+          MISSING_BUILD_FILE: ${{ steps.missing-build-file.outcome }}
+          NO_MATCHING_CONFIGURATION: ${{ steps.no-matching-configuration.outcome }}
+          CONSUMABLE_CONFIGURATION: ${{ steps.consumable-configuration.outcome }}
+          CONFIGURATION_ATTRIBUTES: ${{ steps.configuration-attributes.outcome }}
+          INVALID_PROJECT_LIFECYCLE: ${{ steps.invalid-project-lifecycle.outcome }}
+          MISSING_PROJECT_NAME: ${{ steps.missing-project-name.outcome }}
+          EMPTY_PATH: ${{ steps.empty-path.outcome }}
+          EMPTY_CONFIGURATION_MATCHING: ${{ steps.empty-configuration-matching.outcome }}
+        run: |
+          failed=0
+          for scan in MISSING_DEPENDENCY MISSING_ARTIFACT MIXED_MANIFESTS MISSING_BUILD_FILE NO_MATCHING_CONFIGURATION CONSUMABLE_CONFIGURATION CONFIGURATION_ATTRIBUTES INVALID_PROJECT_LIFECYCLE MISSING_PROJECT_NAME EMPTY_PATH EMPTY_CONFIGURATION_MATCHING; do
+            if [[ "${!scan}" != "failure" ]]; then
+              echo "::error::Expected the ${scan} scan to fail, but its outcome is ${!scan}"
+              failed=1
+            fi
+          done
+          exit $failed
