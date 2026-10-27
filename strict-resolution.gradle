@@ -1,0 +1,53 @@
+// Fails the Gradle build that the Snyk CLI starts when the dependency graph it is about to upload is incomplete.
+// Snyk resolves leniently: an unresolved dependency loses its transitive dependencies, and a configuration pattern
+// without a match yields an empty graph, both without failing the scan.
+
+import java.util.regex.Pattern
+import org.gradle.api.artifacts.result.UnresolvedDependencyResult
+
+// Gradle applies init scripts to the included builds of a composite as well, but Snyk only runs its task in the build it starts
+if (gradle.parent != null) {
+    return
+}
+
+def checked = false
+
+gradle.taskGraph.whenReady { graph ->
+    def root = gradle.rootProject
+    // Snyk runs only its own task, so the first task of the graph runs before the dependency graph is built
+    def snykTask = graph.allTasks.first()
+    def snykProjectPath = snykTask.project.path
+    snykTask.doFirst {
+        // the same project and configuration selection as Snyk's init script, from the properties Snyk passes
+        if (root.hasProperty('confAttr')) {
+            throw new GradleException('--configuration-attributes is not supported')
+        }
+        def sub = root.findProperty('onlySubProject')
+        def pattern = Pattern.compile(root.findProperty('configuration') ?: '.*', Pattern.CASE_INSENSITIVE)
+        def projects = root.allprojects.findAll { p ->
+            sub == null || (sub == '.' && p.path == snykProjectPath) || p.name == sub || p.path.replace(':', '/').replaceAll(~/(^\/+?)|(\/+$)/, '') == sub
+        }
+        def checkedConfigurations = 0
+        projects.each { p ->
+            p.configurations.matching { it.name =~ pattern && it.canBeResolved && (!it.canBeConsumed || !it.dependencies.isEmpty()) }.each { conf ->
+                def unresolved = conf.incoming.resolutionResult.allDependencies.findAll { it instanceof UnresolvedDependencyResult }
+                def failures = conf.incoming.artifactView { it.lenient = true }.artifacts.failures
+                if (unresolved || failures) {
+                    throw new GradleException("${conf} is incomplete: " + (unresolved*.attempted + failures*.message).join(', '))
+                }
+                checkedConfigurations++
+            }
+        }
+        if (checkedConfigurations == 0) {
+            throw new GradleException('Found no matching configuration to check')
+        }
+        checked = true
+    }
+}
+
+// fails the build when Snyk no longer runs the task this script hooks into
+gradle.buildFinished { result ->
+    if (result.failure == null && !checked) {
+        throw new GradleException('The dependency graph check did not run')
+    }
+}
