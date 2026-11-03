@@ -11,4 +11,12 @@
     addLabels: [
         'engineering-platform-team',
     ],
+    packageRules: [
+        {
+            matchPackageNames: [
+                'com.example:**',
+            ],
+            enabled: false,
+        },
+    ],
 }
